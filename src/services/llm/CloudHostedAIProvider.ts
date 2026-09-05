@@ -17,7 +17,7 @@ export class CloudHostedAIProvider
     userMessage: string,
     fetchedText: string,
     selectedAssistant: AssistantOption,
-    base64ImageSrc?: ImageFile[]
+    _base64ImageSrc?: ImageFile[]
   ): Promise<string | undefined> {
     if (!this.apiKey) return undefined;
 

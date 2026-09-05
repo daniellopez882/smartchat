@@ -2,9 +2,7 @@ import React, {
   ChangeEvent,
   FormEvent,
   useState,
-  useEffect,
-  SetStateAction,
-  Dispatch
+  useEffect
 } from 'react';
 import { useRouter } from 'next/router';
 
@@ -85,7 +83,7 @@ export default function AISpaceConfigPanel({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState('');
   const [submissionSuccess, setSubmissionSuccess] = useState('');
-  const [existingNames, setExistingNames] = useState<string[]>([]);
+  const [existingNames] = useState<string[]>([]);
   const [aiSpaceConfig, setAISpaceConfig] =
     useState<AISpaceConfig>(initialAISpaceConfig);
 
@@ -129,7 +127,6 @@ export default function AISpaceConfigPanel({
       router.push('/login');
       return;
     }
-    const selectedNamespaceValue = selectedNamespace?.value || '';
 
     /* try {
       const response = await postAISpaceConfig(

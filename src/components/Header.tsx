@@ -2,7 +2,6 @@ import {
   useState,
   useEffect,
   FC,
-  MouseEvent,
   Dispatch,
   SetStateAction
 } from 'react';
@@ -27,7 +26,6 @@ const Header: FC<HeaderProps> = ({ isSidebarOpen, setIsSidebarOpen }) => {
     '/embedragfile': 'Embed RAG File'
   };
   const {
-    isNewChat,
     setIsNewChat,
     isConfigPanelVisible,
     setIsConfigPanelVisible
@@ -54,11 +52,11 @@ const Header: FC<HeaderProps> = ({ isSidebarOpen, setIsSidebarOpen }) => {
     setIsConfigPanelVisible(false);
   };
 
-  const toggleSidebar = (e: MouseEvent<HTMLButtonElement>) => {
+  const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  const toggleConfigPanel = (e: MouseEvent<HTMLButtonElement>) => {
+  const toggleConfigPanel = () => {
     setIsConfigPanelVisible(!isConfigPanelVisible);
   };
 

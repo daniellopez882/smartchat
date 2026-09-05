@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI, Part } from '@google/generative-ai';
 import { Message, ImageFile, AssistantOption } from '@/src/types/chat';
 import { BaseAIProvider } from '@/src/services/llm/BaseAIProvider';
-import { AIProviderError, AppError } from '@/src/services/llm/CustomErrorTypes';
+import { AIProviderError } from '@/src/services/llm/CustomErrorTypes';
 import {
   multimodalRole,
   beforeRespond,

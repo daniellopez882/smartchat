@@ -116,7 +116,7 @@ export default function AIConfigPanel({
       }
 
       setSubmissionSuccess(response.message);
-      setAIConfig(prevConfig => ({ ...aiConfig, name: '' })); // Clear name field after success
+      setAIConfig({ ...aiConfig, name: '' }); // Clear name field after success
     } catch (error: any) {
       setSubmissionError(error.message || 'An unexpected error occurred.');
     } finally {
