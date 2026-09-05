@@ -3,6 +3,7 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  JoinColumn,
   OneToMany,
   ManyToOne
 } from 'typeorm';
@@ -64,6 +65,7 @@ export class AIConfig {
   createdAt!: Date;
 
   @ManyToOne(() => User)
+  @JoinColumn({ name: 'userId' })
   user!: User;
 
   @Column('int')
@@ -88,6 +90,7 @@ export class Chat {
   tags?: string[];
 
   @ManyToOne(() => User, user => user.chats)
+  @JoinColumn({ name: 'userId' })
   user!: User;
 
   @Column('int')
@@ -118,6 +121,7 @@ export class ChatMessage {
   metadata?: { [key: string]: any };
 
   @ManyToOne(() => Chat, chat => chat.messages)
+  @JoinColumn({ name: 'chatId' })
   chat!: Chat;
 
   @Column('int')
@@ -138,7 +142,10 @@ export class ChatFile {
   @Column('varchar')
   type!: string;
 
+  // Without the explicit join column TypeORM expects a second column,
+  // `chatMessageId`, next to `messageId`; inserts failed on a migrated schema.
   @ManyToOne(() => ChatMessage, message => message.files)
+  @JoinColumn({ name: 'messageId' })
   chatMessage!: ChatMessage;
 
   @Column('int')

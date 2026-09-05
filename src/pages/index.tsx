@@ -30,10 +30,7 @@ import {
 } from '@/src/utils/initialData';
 import { getAIConfigs } from '@/src/utils/dataClient/sqliteAIConfigApiClient';
 import { updateChats } from '@/src/utils/dataClient/sqliteChatApiClient';
-import {
-  updateChatMessages,
-  updateChat
-} from '@/src/utils/dataClient/sqliteChatIdApiClient';
+import { updateChatMessages } from '@/src/utils/dataClient/sqliteChatIdApiClient';
 import { AIProviderError, AppError } from '@/src/services/llm/CustomErrorTypes';
 
 const initialFileCategory: OptionType = { value: 'none', label: 'None' };
@@ -57,7 +54,6 @@ const HomePage: React.FC<HomeProps> = ({ namespaces, setNamespacesList }) => {
     setChatHistory,
     activeChat,
     setActiveChat,
-    chats,
     setChats,
     selectedModel,
     setSelectedModel
@@ -88,7 +84,6 @@ const HomePage: React.FC<HomeProps> = ({ namespaces, setNamespacesList }) => {
 
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | ReactNode | null>(null);
-  const [messageSubjectList, setMessageSubjectList] = useState<string[]>([]);
 
   // --- Handlers ---
   const handleModelChange = (selectedOption: SingleValue<OptionType>) => {
@@ -122,10 +117,13 @@ const HomePage: React.FC<HomeProps> = ({ namespaces, setNamespacesList }) => {
       namespace: string
     ) => {
       try {
+        // The chat route requires the session token now.
+        const token = window.localStorage.getItem('token') ?? '';
         const response = await fetch('/api/ai/chat', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer ' + token
           },
           body: JSON.stringify({
             question,
@@ -262,8 +260,6 @@ const HomePage: React.FC<HomeProps> = ({ namespaces, setNamespacesList }) => {
 
       setLoading(false);
 
-      setMessageSubjectList(prevList => [...prevList, data.subject]);
-
       setChatHistory((prevHistory: Message[]) => [
         ...prevHistory.slice(0, -1), // remove the last one that only has user message,but no AI response
         {
@@ -379,7 +375,6 @@ const HomePage: React.FC<HomeProps> = ({ namespaces, setNamespacesList }) => {
       setFileSrcHistory([[]]); // Reset file history as well
       setIsNewChat(false);
     }
-    // eslint-disable-next-line
   }, [isNewChat]);
 
   return (

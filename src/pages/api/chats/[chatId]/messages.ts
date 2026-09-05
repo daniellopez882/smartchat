@@ -1,71 +1,69 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiRequest, NextApiResponse } from 'next';
 
-import { getAppDataSource, ChatMessage, ChatFile } from '@/src/db';
+import { getAppDataSource, Chat, ChatMessage, ChatFile } from '@/src/db';
 import { withAuth } from '@/src/middleware/auth';
+import { isRecord } from '@/src/middleware/guards';
 
-const handler = withAuth(async (req: NextApiRequest, res: NextApiResponse) => {
+/**
+ * Messages of one chat. The chat must belong to the caller: the old handler
+ * ignored the user id entirely, so any token could read or append to any chat.
+ */
+const handler = withAuth(async (req: NextApiRequest, res: NextApiResponse, userId: number) => {
+  const chatId = Number(req.query.chatId);
+  if (!Number.isInteger(chatId) || chatId <= 0) {
+    return res.status(400).json({ error: 'Invalid chatId' });
+  }
+
   const dataSource = await getAppDataSource();
-  if (!dataSource)
-    return res.status(500).json({ message: 'AppDataSource is null' });
+  const chat = await dataSource.getRepository(Chat).findOne({ where: { id: chatId, userId } });
+  if (!chat) return res.status(404).json({ error: 'Chat not found' });
 
-  const chatMessageRepository = dataSource.getRepository(ChatMessage);
-  const chatFileRepository = dataSource.getRepository(ChatFile);
+  const messages = dataSource.getRepository(ChatMessage);
+  const files = dataSource.getRepository(ChatFile);
 
   if (req.method === 'POST') {
-    const { userMessage, aiMessage, assistant, chatId, fileSrc } = req.body;
-
-    if (!userMessage || !aiMessage || !assistant || !chatId) {
-      return res.status(400).json({ message: 'Missing required fields' });
+    const { userMessage, aiMessage, assistant, fileSrc } = (req.body ?? {}) as Record<string, unknown>;
+    if (typeof userMessage !== 'string' || typeof aiMessage !== 'string' || typeof assistant !== 'string') {
+      return res.status(400).json({ error: 'userMessage, aiMessage and assistant are required' });
     }
-
     try {
-      const chatMessage = chatMessageRepository.create({
-        userMessage,
-        aiMessage,
-        assistant,
-        chat: { id: chatId }
-      });
-      await chatMessageRepository.save(chatMessage);
-
-      if (fileSrc && Array.isArray(fileSrc)) {
-        const chatFiles = fileSrc.map(fileData =>
-          chatFileRepository.create({
-            fileData,
-            type: fileData.type,
-            chatMessage: chatMessage,
-            messageId: chatMessage.id
-          })
+      const chatMessage = messages.create({ userMessage, aiMessage, assistant, chat: { id: chatId } });
+      await messages.save(chatMessage);
+      if (Array.isArray(fileSrc) && fileSrc.length) {
+        await files.save(
+          fileSrc.filter(isRecord).map(fileData =>
+            files.create({
+              fileData: fileData as unknown as ChatFile['fileData'],
+              type: typeof fileData.type === 'string' ? fileData.type : 'unknown',
+              chatMessage,
+              messageId: chatMessage.id
+            })
+          )
         );
-        await chatFileRepository.save(chatFiles);
       }
-
-      res.status(201).json({ success: true, messageId: chatMessage.id });
+      return res.status(201).json({ success: true, messageId: chatMessage.id });
     } catch (error) {
       console.error('Error saving message:', error);
-      res.status(500).json({ success: false, message: 'Error saving message' });
+      return res.status(500).json({ success: false, error: 'Error saving message' });
     }
-  } else if (req.method === 'GET') {
-    const { chatId } = req.query;
+  }
 
-    if (!chatId || Array.isArray(chatId)) {
-      return res.status(400).json({ message: 'Invalid chatId' });
-    }
+  if (req.method === 'GET') {
     try {
-      const chatMessages = await chatMessageRepository.find({
-        where: { chat: { id: parseInt(chatId) } },
+      const chatMessages = await messages.find({
+        where: { chatId },
         relations: ['files'],
         order: { createdAt: 'ASC' }
       });
-
-      res.status(200).json(chatMessages);
+      return res.status(200).json(chatMessages);
     } catch (error) {
       console.error('Error fetching messages:', error);
-      res.status(500).json({ message: 'Error fetching messages' });
+      return res.status(500).json({ error: 'Error fetching messages' });
     }
-  } else {
-    res.setHeader('Allow', ['GET', 'POST']);
-    res.status(405).end(`Method ${req.method} not allowed`);
   }
+
+  res.setHeader('Allow', ['GET', 'POST']);
+  return res.status(405).json({ error: `Method ${req.method} not allowed` });
 });
 
 export default handler;

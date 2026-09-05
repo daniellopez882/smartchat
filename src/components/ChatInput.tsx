@@ -142,8 +142,13 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSubmit, isVisionModel }) => {
   };
   const handleScreenCapture = async () => {
     try {
-      const response = await fetch('/api/tools/screenshot', { method: 'POST' });
-      const { message, base64Image, type, size, name } = await response.json();
+      // The route requires the session token now.
+      const token = window.localStorage.getItem('token') ?? '';
+      const response = await fetch('/api/tools/screenshot', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      const { base64Image, type, size, name } = await response.json();
 
       if (!response.ok) {
         setFileError(prev => [

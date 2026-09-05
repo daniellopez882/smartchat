@@ -75,7 +75,7 @@ const UploadFilePage: FC<{ namespaces: string[] }> = ({ namespaces }) => {
   });
 
   const validateInput = (name: string, value: number | string) => {
-    const { chunkSize, chunkOverlap, newFileCategory } = selectedInput;
+    const { chunkSize, chunkOverlap } = selectedInput;
 
     if (name === 'newFileCategory') {
       if (!value)
@@ -131,7 +131,6 @@ const UploadFilePage: FC<{ namespaces: string[] }> = ({ namespaces }) => {
   const {
     selectedInput,
     inputErrors,
-    setSelectedInput,
     setInputErrors,
     handleInputChange,
     handleInputBlur
@@ -238,7 +237,9 @@ const UploadFilePage: FC<{ namespaces: string[] }> = ({ namespaces }) => {
     if (hasErrors) return;
 
     const formData = await prepareFormData();
-    await handleFormSubmit('/api/tools/upload', formData);
+    // The upload route requires the session token now.
+    const token = window.localStorage.getItem('token') ?? undefined;
+    await handleFormSubmit('/api/tools/upload', formData, token);
   };
 
   return (

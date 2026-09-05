@@ -1,56 +1,33 @@
-import { PINECONE_INDEX_NAME } from '@/config/env';
-import { pineconeClient } from '@/src/services/rag/pineconeClient';
-interface Metadata {
-  'loc.lines.from'?: number;
-  'loc.lines.to'?: number;
-  'loc.pageNumber'?: number;
-  'pdf.info.CreationDate'?: string;
-  'pdf.info.Creator'?: string;
-  'pdf.info.IsAcroFormPresent'?: boolean;
-  'pdf.info.IsXFAPresent'?: boolean;
-  'pdf.info.PDFFormatVersion'?: string;
-  'pdf.info.Producer'?: string;
-  'pdf.totalPages'?: number;
-  'pdf.version'?: string;
-  source?: string;
-  text?: string;
-}
+import { requireEnv } from '@/config/env';
+import { getPineconeClient } from '@/src/services/rag/pineconeClient';
 
+export const TOP_K = 3;
+
+/**
+ * The text of the closest chunks in a namespace, joined; an empty string when
+ * nothing matches. It used to throw 'No matches found', which the chat route
+ * turned into a 500 — asking a question in an empty namespace failed the
+ * whole request instead of answering without context.
+ */
 export const fetchDataFromPinecone = async (
   embeddedQuery: number[],
   nameSpace: string
-) => {
+): Promise<string> => {
   if (!Array.isArray(embeddedQuery) || embeddedQuery.length === 0) {
     throw new Error('Invalid or empty query vector provided.');
   }
 
-  const index = pineconeClient.Index(PINECONE_INDEX_NAME as string);
-  if (!index) {
-    throw new Error('Unable to fetch Pinecone index');
-  }
-
-  const queryRequest = {
+  const index = getPineconeClient().Index(requireEnv('PINECONE_INDEX_NAME'));
+  const queryResponse = await index.namespace(nameSpace).query({
     vector: embeddedQuery,
-    topK: 3,
-    includeValues: true,
+    topK: TOP_K,
+    includeValues: false,
     includeMetadata: true
-  };
+  });
 
-  let queryResponse;
-  try {
-    queryResponse = await index.namespace(nameSpace).query(queryRequest);
-  } catch (error) {
-    throw new Error(`Failed to fetch data from Pinecone: ${error}`);
-  }
-
-  if (!queryResponse?.matches || queryResponse?.matches?.length === 0) {
-    throw new Error('No matches found');
-  }
-
-  const message = queryResponse.matches.reduce((sum, match) => {
-    const text = match.metadata?.text ?? '';
-
-    return sum + '\n' + text;
-  }, '');
-  return message;
+  const matches = queryResponse?.matches ?? [];
+  return matches
+    .map(match => (typeof match.metadata?.text === 'string' ? match.metadata.text : ''))
+    .filter(Boolean)
+    .join('\n');
 };
