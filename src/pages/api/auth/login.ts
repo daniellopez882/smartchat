@@ -1,87 +1,63 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import type { NextApiRequest, NextApiResponse } from 'next';
 import bcrypt from 'bcryptjs';
-import { body, validationResult } from 'express-validator';
 import jwt from 'jsonwebtoken';
-import { getRepository } from 'typeorm';
 
-import { DEFAULT_USERNAME, DEFAULT_PASSWORD, JWT_SECRET } from '@/config/env';
+import { env, features } from '@/config/env';
 import { getAppDataSource, User } from '@/src/db';
-import { loginLimiter, validateLoginInput } from '@/src/middleware/auth';
+import { applyLoginLimiter, validateLogin } from '@/src/middleware/auth';
+import { withMethods } from '@/src/middleware/guards';
 
-const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+export const TOKEN_TTL = '12h';
+export const DEFAULT_CREDENTIALS_REFUSED =
+  'Default credentials are refused in production; set DEFAULT_USERNAME/DEFAULT_PASSWORD or ALLOW_DEFAULT_CREDENTIALS=true';
+
+/** True when the configured first-user credentials are the ones shipped in .env.example. */
+export const usingShippedDefaults = () =>
+  env.DEFAULT_USERNAME === 'admin' && env.DEFAULT_PASSWORD === 'smartchat';
+
+const handler = withMethods(['POST'], async (req: NextApiRequest, res: NextApiResponse) => {
+  if (!(await applyLoginLimiter(req, res))) return;
+
+  const errors = await validateLogin(req);
+  if (errors.length) {
+    return res.status(400).json({ error: 'Invalid input', details: errors });
   }
+  const { username, password } = req.body as { username: string; password: string };
 
-  // Apply rate limiter
-  await new Promise((resolve, reject) => {
-    loginLimiter(req, res, (result: unknown) => {
-      if (result instanceof Error) {
-        return reject(result);
-      }
-      return resolve(result);
-    });
-  });
-  // Apply validation middleware
-  await validateLoginInput(req, res);
-
-  const { username, password } = req.body;
-
-  if (!username || !password) {
-    return res
-      .status(400)
-      .json({ error: 'Username and password are required' });
+  if (!env.JWT_SECRET) {
+    console.error('JWT_SECRET is not set');
+    return res.status(500).json({ error: 'Server is not configured' });
   }
 
   try {
     const dataSource = await getAppDataSource();
+    const users = dataSource.getRepository(User);
+    let user = await users.findOne({ where: { username } });
 
-    if (!dataSource) {
-      return res.status(500).json({ error: 'Internal server error' });
+    // This app is for one person: the first login with the configured default
+    // credentials creates the only user. The .env.example pair (admin/smartchat)
+    // is refused in production unless explicitly allowed.
+    if (!user) {
+      const isDefault = username === env.DEFAULT_USERNAME && password === env.DEFAULT_PASSWORD;
+      if (!isDefault) return res.status(401).json({ error: 'Invalid login credentials' });
+      if (features.isProduction && usingShippedDefaults() && !features.allowDefaultCredentials) {
+        console.error(DEFAULT_CREDENTIALS_REFUSED);
+        return res.status(403).json({ error: DEFAULT_CREDENTIALS_REFUSED });
+      }
+      user = users.create({ username, password: await bcrypt.hash(password, 10) });
+      await users.save(user);
     }
 
-    const userRepository = dataSource.getRepository(User);
-
-    let user = await userRepository.findOne({ where: { username } });
-
-    // This app is for one person
-    // if user doesn't exist, create default user
-    // if user exists, no more additional user
-    if (
-      !user &&
-      username === DEFAULT_USERNAME &&
-      password === DEFAULT_PASSWORD
-    ) {
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      user = userRepository.create({
-        username,
-        password: hashedPassword
-      });
-
-      await userRepository.save(user);
-    } else if (!user) {
-      return res.status(401).json({ error: 'Invalid log credentials' });
+    if (!(await bcrypt.compare(password, user.password))) {
+      return res.status(401).json({ error: 'Invalid login credentials' });
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({ error: 'Invalid log credentials' });
-    }
-
-    if (!JWT_SECRET) {
-      throw new Error('JWT_SECRET is not defined');
-    }
-
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, {
-      expiresIn: '12h'
-    });
-
-    res.status(200).json({ message: 'Login successful', token });
+    const token = jwt.sign({ userId: user.id }, env.JWT_SECRET, { expiresIn: TOKEN_TTL });
+    return res.status(200).json({ message: 'Login successful', token });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
-};
+});
 
 export default handler;

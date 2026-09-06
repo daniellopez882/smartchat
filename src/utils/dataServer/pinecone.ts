@@ -1,13 +1,11 @@
 import { getNamespaces } from '@/src/services/rag/pineconeClient';
-import { PINECONE_INDEX_NAME } from '@/config/env';
+import { features, env } from '@/config/env';
 
 export const fetchNamespaces = async () => {
   try {
-    if (!PINECONE_INDEX_NAME) {
-      console.error('Missing Pinecone index name');
-      return [];
-    }
-    const namespaces = await getNamespaces(PINECONE_INDEX_NAME);
+    // No Pinecone configured: the UI simply has no namespaces to offer.
+    if (!features.rag) return [];
+    const namespaces = await getNamespaces(env.PINECONE_INDEX_NAME);
 
     return namespaces;
   } catch (error) {

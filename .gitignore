@@ -56,4 +56,3 @@ next-env.d.ts
 # Database
 /database.sqlite
 
-/docs

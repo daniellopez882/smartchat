@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main, production-readiness]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3000
+          NEXT_TELEMETRY_DISABLED: "1"
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      # High and critical advisories fail the job. The allowlist is only for
+      # advisories with no fixed release; each entry is explained in docs/threat-model.md.
+      - run: npx audit-ci@^7 --high --allowlist-file .audit-allowlist.json
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: No .env or database tracked
+        run: test -z "$(git ls-files | grep -E '(^|/)\.env$|\.sqlite$')"
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  container:
+    runs-on: ubuntu-latest
+    needs: [check]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t smartchat:ci .
+      - name: Runs as non-root
+        run: test "$(docker run --rm --entrypoint id smartchat:ci -u)" = "10001"
+      - name: Starts, migrates its database, and gates its routes
+        run: |
+          docker run -d --rm --name smartchat -p 3000:3000 \
+            -e JWT_SECRET=ci-secret-value-long-enough -e DEFAULT_USERNAME=ci -e DEFAULT_PASSWORD=ci-password-1 \
+            smartchat:ci
+          for i in $(seq 1 40); do curl -fsS http://127.0.0.1:3000/api/health >/dev/null 2>&1 && break; sleep 2; done
+          curl -fsS http://127.0.0.1:3000/api/health | tee health.json
+          grep -q '"database":"ok"' health.json
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:3000/api/ai/chat)" = "401"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:3000/api/tools/screenshot)" = "401"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:3000/api/tools/startserver)" = "401"
+          docker stop smartchat

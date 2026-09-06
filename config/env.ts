@@ -1,53 +1,104 @@
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
-if (!OPENAI_API_KEY) throw new Error('Missing OpenAI API key');
+/**
+ * Environment access.
+ *
+ * Nothing here throws at import. The previous module threw for
+ * OPENAI_API_KEY, PINECONE_API_KEY, JWT_SECRET and NEXT_PUBLIC_API_URL the
+ * moment anything imported it, so `next build` and every page — the login
+ * page included — required every provider to be configured, even for a user
+ * who only wanted Gemini or Groq. Required values are checked where they are
+ * used (`requireEnv`); optional ones become feature flags.
+ */
 
-// for connecting to Google's Gemini Generative AI models
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-if (!GEMINI_API_KEY) console.error('Missing Google Gemini API key');
+const read = (name: string): string => (process.env[name] ?? '').trim();
+const flag = (name: string): boolean => read(name).toLowerCase() === 'true';
 
-// for connecting to Anthropic's Claude Generative AI models
-const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY;
-if (!CLAUDE_API_KEY) console.error('Missing CLAUDE API key');
-
-// For connecting to remote FastAPI server
-const NEXT_PUBLIC_SERVER_SECRET_KEY = process.env.NEXT_PUBLIC_SERVER_SECRET_KEY;
-if (!NEXT_PUBLIC_SERVER_SECRET_KEY)
-  console.error('Sever secret key is missing');
-
-// url address for this app's Next.js backend
-const NEXT_PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL;
-if (!NEXT_PUBLIC_API_URL) throw new Error('Missing API url');
-
-// for connecting to Groq server
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
-if (!GROQ_API_KEY) console.error('Missing GROQ API key');
-
-// for connecting to Pinecone vector database
-const PINECONE_API_KEY = process.env.PINECONE_API_KEY;
-if (!PINECONE_API_KEY) throw new Error('Missing Pinecone API key');
-
-const PINECONE_INDEX_NAME = process.env.PINECONE_INDEX_NAME;
-if (!PINECONE_INDEX_NAME) console.error('Missing Pinecone index name');
-
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) throw new Error('Missing required JWT_SECRET');
-
-const DEFAULT_USERNAME = process.env.DEFAULT_USERNAME;
-const DEFAULT_PASSWORD = process.env.DEFAULT_PASSWORD;
-if (!DEFAULT_USERNAME || !DEFAULT_PASSWORD) {
-  throw new Error('Missing required default username and password');
+export class MissingEnvError extends Error {
+  constructor(public readonly name: string) {
+    super(`${name} is not set`);
+  }
 }
 
-export {
-  GEMINI_API_KEY,
-  CLAUDE_API_KEY,
-  GROQ_API_KEY,
-  NEXT_PUBLIC_API_URL,
-  OPENAI_API_KEY,
-  PINECONE_API_KEY,
-  PINECONE_INDEX_NAME,
-  NEXT_PUBLIC_SERVER_SECRET_KEY,
-  JWT_SECRET,
-  DEFAULT_USERNAME,
-  DEFAULT_PASSWORD
+/** Read a required variable at the point of use, not at import. */
+export const requireEnv = (name: string): string => {
+  const value = read(name);
+  if (!value) throw new MissingEnvError(name);
+  return value;
 };
+
+/** Live getters, so tests can change the environment after import. */
+export const env = {
+  get OPENAI_API_KEY() {
+    return read('OPENAI_API_KEY');
+  },
+  get GEMINI_API_KEY() {
+    return read('GEMINI_API_KEY');
+  },
+  get CLAUDE_API_KEY() {
+    return read('CLAUDE_API_KEY');
+  },
+  get GROQ_API_KEY() {
+    return read('GROQ_API_KEY');
+  },
+  get PINECONE_API_KEY() {
+    return read('PINECONE_API_KEY');
+  },
+  get PINECONE_INDEX_NAME() {
+    return read('PINECONE_INDEX_NAME');
+  },
+  get JWT_SECRET() {
+    return read('JWT_SECRET');
+  },
+  get DEFAULT_USERNAME() {
+    return read('DEFAULT_USERNAME');
+  },
+  get DEFAULT_PASSWORD() {
+    return read('DEFAULT_PASSWORD');
+  },
+  get DATABASE_PATH() {
+    return read('DATABASE_PATH') || 'database.sqlite';
+  },
+  get NEXT_PUBLIC_API_URL() {
+    return read('NEXT_PUBLIC_API_URL');
+  },
+  get NEXT_PUBLIC_SERVER_URL() {
+    return read('NEXT_PUBLIC_SERVER_URL');
+  },
+  get NEXT_PUBLIC_SERVER_GPU_URL() {
+    return read('NEXT_PUBLIC_SERVER_GPU_URL');
+  },
+  get NEXT_PUBLIC_SERVER_SECRET_KEY() {
+    return read('NEXT_PUBLIC_SERVER_SECRET_KEY');
+  },
+  /** Private key for the remote-server tools. It was taken from the request body. */
+  get REMOTE_SERVER_PEM_PATH() {
+    return read('REMOTE_SERVER_PEM_PATH');
+  }
+};
+
+export const features = {
+  /** Uploads and retrieval need Pinecone and OpenAI embeddings. */
+  get rag() {
+    return !!(env.PINECONE_API_KEY && env.PINECONE_INDEX_NAME && env.OPENAI_API_KEY);
+  },
+  /** Captures the server's own desktop; only meaningful on a personal machine. Off by default. */
+  get screenshot() {
+    return flag('ENABLE_SCREENSHOT_TOOL');
+  },
+  /** Starts/stops an EC2 instance and SSHes into it. Off by default. */
+  get remoteTools() {
+    return flag('ENABLE_REMOTE_SERVER_TOOLS') && !!env.REMOTE_SERVER_PEM_PATH;
+  },
+  /** Trust X-Forwarded-For for rate limiting; only behind a proxy you control. */
+  get trustProxy() {
+    return flag('TRUST_PROXY');
+  },
+  get allowDefaultCredentials() {
+    return flag('ALLOW_DEFAULT_CREDENTIALS');
+  },
+  get isProduction() {
+    return read('NODE_ENV') === 'production';
+  }
+};
+
+// Kept for the client bundle, which reads it at build time.
+export const NEXT_PUBLIC_API_URL = env.NEXT_PUBLIC_API_URL;

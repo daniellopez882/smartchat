@@ -1,137 +1,90 @@
 import 'reflect-metadata';
-import { NextApiRequest, NextApiResponse } from 'next';
-import {
-  DataSource,
-  EntityNotFoundError,
-  ConnectionIsNotSetError,
-  EntityMetadataNotFoundError
-} from 'typeorm';
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { DataSource } from 'typeorm';
 
-import { getAppDataSource, Chat, User, ChatMessage, ChatFile } from '@/src/db';
+import { getAppDataSource, Chat, ChatMessage, ChatFile } from '@/src/db';
 import { withAuth } from '@/src/middleware/auth';
 
+/**
+ * Delete or rename one chat. Both used to look the chat up by id alone; any
+ * authenticated user could delete or rename any other user's chat. The
+ * lookups include the caller's userId now.
+ */
 const handleDeleteRequest = async (
   res: NextApiResponse,
   dataSource: DataSource,
-  chatIdNum: number
+  chatId: number,
+  userId: number
 ) => {
-  // Start a transaction
-  await dataSource.transaction(async transactionalEntityManager => {
-    // Find the chat
-    const chat = await transactionalEntityManager.findOne(Chat, {
-      where: { id: chatIdNum },
-      relations: ['messages', 'messages.files']
+  const deleted = await dataSource.transaction(async manager => {
+    const chat = await manager.findOne(Chat, {
+      where: { id: chatId, userId },
+      relations: ['messages']
     });
-
-    if (!chat) {
-      return res.status(404).json({ error: 'Chat not found' });
+    if (!chat) return false;
+    for (const message of chat.messages ?? []) {
+      await manager.delete(ChatFile, { messageId: message.id });
     }
-
-    // Delete all files associated with the chat's messages
-    if (chat.messages) {
-      for (const message of chat.messages) {
-        if (message.files) {
-          await transactionalEntityManager.delete(ChatFile, {
-            messageId: message.id
-          });
-        }
-      }
-    }
-
-    // Delete all messages associated with the chat
-    await transactionalEntityManager.delete(ChatMessage, { chatId: chat.id });
-
-    // Finally, delete the chat itself
-    await transactionalEntityManager.delete(Chat, { id: chat.id });
+    await manager.delete(ChatMessage, { chatId: chat.id });
+    await manager.delete(Chat, { id: chat.id });
+    return true;
   });
-
-  res
-    .status(200)
-    .json({ message: 'Chat and all associated data deleted successfully' });
+  if (!deleted) return res.status(404).json({ error: 'Chat not found' });
+  return res.status(200).json({ message: 'Chat and all associated data deleted successfully' });
 };
 
 const handlePutRequest = async (
   req: NextApiRequest,
   res: NextApiResponse,
   dataSource: DataSource,
-  chatIdNum: number
+  chatId: number,
+  userId: number
 ) => {
-  const { title, tags } = req.body;
-  const chatRepository = dataSource.getRepository(Chat);
+  const { title, tags } = (req.body ?? {}) as { title?: unknown; tags?: unknown };
+  const chats = dataSource.getRepository(Chat);
+  const chat = await chats.findOne({ where: { id: chatId, userId } });
+  if (!chat) return res.status(404).json({ error: 'Chat not found' });
 
-  // Find the chat
-  const chat = await chatRepository.findOne({ where: { id: chatIdNum } });
-
-  if (!chat) {
-    return res.status(404).json({ error: 'Chat not found' });
-  }
   let isUpdated = false;
-  // Update title if provided
   if (title !== undefined) {
     if (typeof title !== 'string' || title.length < 1 || title.length > 255) {
-      return res
-        .status(400)
-        .json({ error: 'Title must be a string between 1 and 255 characters' });
+      return res.status(400).json({ error: 'Title must be a string between 1 and 255 characters' });
     }
     chat.title = title;
     isUpdated = true;
   }
-
-  // Update tags if provided
   if (tags !== undefined) {
     if (!Array.isArray(tags) || !tags.every(tag => typeof tag === 'string')) {
-      return res
-        .status(400)
-        .json({ error: 'Tags must be an array of strings' });
+      return res.status(400).json({ error: 'Tags must be an array of strings' });
     }
     chat.tags = tags;
     isUpdated = true;
   }
-  if (!isUpdated) {
-    return res.status(400).json({ error: 'Title or tags must be provided' });
-  }
-  // Save the updated chat
-  await chatRepository.save(chat);
+  if (!isUpdated) return res.status(400).json({ error: 'Title or tags must be provided' });
 
-  res.status(200).json({ message: 'Chat title updated successfully' });
+  await chats.save(chat);
+  return res.status(200).json({ message: 'Chat updated successfully' });
 };
 
-const handler = withAuth(async (req: NextApiRequest, res: NextApiResponse) => {
-  // validation
-  const { chatId } = req.query;
-  const chatIdNum = Number(chatId);
-  if (isNaN(chatIdNum)) {
+const handler = withAuth(async (req: NextApiRequest, res: NextApiResponse, userId: number) => {
+  const chatId = Number(req.query.chatId);
+  if (!Number.isInteger(chatId) || chatId <= 0) {
     return res.status(400).json({ error: 'Invalid chat ID' });
   }
-
   try {
     const dataSource = await getAppDataSource();
-
-    if (!dataSource)
-      return res.status(500).json({ error: 'Internal server error' });
-
     switch (req.method) {
       case 'DELETE':
-        await handleDeleteRequest(res, dataSource, chatIdNum);
-        break;
+        return await handleDeleteRequest(res, dataSource, chatId, userId);
       case 'PUT':
-        await handlePutRequest(req, res, dataSource, chatIdNum);
-        break;
+        return await handlePutRequest(req, res, dataSource, chatId, userId);
       default:
         res.setHeader('Allow', ['DELETE', 'PUT']);
-        res.status(405).end(`Method ${req.method} Not Allowed`);
+        return res.status(405).json({ error: `Method ${req.method} not allowed` });
     }
   } catch (error) {
-    console.error('Error during Chat operation', error);
-    if (error instanceof EntityNotFoundError) {
-      res.status(404).json({ error: 'Chat not found' });
-    } else if (error instanceof ConnectionIsNotSetError) {
-      res.status(500).json({ error: 'Database connection error' });
-    } else if (error instanceof EntityMetadataNotFoundError) {
-      res.status(500).json({ error: 'Entity metadata error' });
-    } else {
-      res.status(500).json({ error: 'Internal server error' });
-    }
+    console.error('Error during chat operation', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 

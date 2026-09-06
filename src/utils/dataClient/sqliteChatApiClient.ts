@@ -59,7 +59,7 @@ export const fetchChats = async (token: string): Promise<ChatOption[]> => {
       throw new Error(`Error: ${response.statusText}`);
     }
     const data = await response.json();
-    const chats = data.map((d: Chat, i: number) => ({
+    const chats = data.map((d: Chat) => ({
       label: d.title,
       value: d.id.toString(),
       tags: d.tags || []

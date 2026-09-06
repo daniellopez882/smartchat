@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { NextApiRequest, NextApiResponse } from 'next';
 import { DataSource } from 'typeorm';
 
-import { getAppDataSource, Chat, User } from '@/src/db';
+import { getAppDataSource, Chat } from '@/src/db';
 import { withAuth } from '@/src/middleware/auth';
 
 const handlePostRequest = async (

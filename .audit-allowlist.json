@@ -1,0 +1,4 @@
+{
+  "_comment": "Advisory IDs audit-ci may ignore. Only for advisories with no fixed release on the npm registry; each entry needs a reason in docs/threat-model.md. Empty means nothing is ignored.",
+  "allowlist": []
+}

@@ -1,7 +1,12 @@
 {
   "compilerOptions": {
     "target": "es2021",
-    "lib": ["dom", "dom.iterable", "esnext", "es6"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext",
+      "es6"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -9,7 +14,7 @@
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
@@ -23,9 +28,14 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": [
+        "./*"
+      ]
     },
-    "typeRoots": ["./node_modules/@types", "./src/types"]
+    "typeRoots": [
+      "./node_modules/@types",
+      "./src/types"
+    ]
   },
   "include": [
     "next-env.d.ts",
@@ -35,5 +45,7 @@
     "tests/**/*",
     "types/**/*"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }

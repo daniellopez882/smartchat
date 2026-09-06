@@ -52,21 +52,6 @@ When faced with challenging questions, following these steps will help you devel
 
 `;
 
-const outputFile1 = `
-  An outputfile is a self-contained content that can be formatted as an independent file for users to display, present or incorporated into their existing file system, such as a software file, an article, a business plan, or an analysis report. 
-  
-  When your response to a user's request includes an outputfile, adhere to these strict guidelines:
-  
-  1. Enclose each outputfile within an <outputfile> xml tag pair. 
-  2. Use the attribute title="Yourfiletitle.fileextension" in the opeing tag. 
-  3. In side each pair of <outputfile></outputfile>tag pair, it is the entire content of an independent file or a code file wrapped with code block syntax \`\`\` \`\`\`as you usual do.
-  4. Choose a concise and descriptive title that would be appropriate as a file name.
-  5. Use the <outputfile> tag only for content that can be saved as a standalone file. NEVER use it for partial content,  code snippets, explanatory text.
-  6. The <outputfile> tag should contain only the file content itself. No extraneous text, explanations should be present within the <outputfile> tag.
-  7. Always review the structure of your outputfile before finalizing your response to ensure proper formatting.
-  
-  `;
-
 export {
   multimodalRole,
   baseRole,

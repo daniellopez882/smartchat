@@ -1,53 +1,40 @@
-import {
-  Pinecone,
-  IndexStatsNamespaceSummary,
-  IndexModel
-} from '@pinecone-database/pinecone';
+import { Pinecone, IndexStatsNamespaceSummary, IndexModel } from '@pinecone-database/pinecone';
 
-import { PINECONE_API_KEY } from '@/config/env';
+import { requireEnv } from '@/config/env';
 
-const initPinecone = async () => {
-  console.log('Initiating Pinecone ...');
+let client: Pinecone | null = null;
 
-  try {
-    const pinecone = new Pinecone({
-      apiKey: PINECONE_API_KEY as string
-    });
-
-    return pinecone;
-  } catch (e) {
-    throw new Error('Error occurred while initializing the Pinecone client.');
+/**
+ * Lazily built. The previous module created the client in a top-level
+ * `await` at import, so any file that touched it required a Pinecone key
+ * before the app could start — including the chat route for users with no
+ * RAG at all.
+ */
+export const getPineconeClient = (): Pinecone => {
+  if (!client) {
+    client = new Pinecone({ apiKey: requireEnv('PINECONE_API_KEY') });
   }
+  return client;
 };
 
-export const pineconeClient = await initPinecone();
+/** For tests. */
+export const resetPineconeClient = (replacement: Pinecone | null = null) => {
+  client = replacement;
+};
 
-export const createPineconeIndex = async (
-  pineconeClient: Pinecone,
-  indexName: string
-) => {
-  try {
-    console.log(`Creating index ${indexName}...`);
-    const res = await pineconeClient.createIndex({
-      name: indexName,
-      dimension: 1536,
-      metric: 'cosine',
-      spec: {
-        serverless: {
-          cloud: 'aws',
-          region: 'us-east-1'
-        }
-      }
-    });
-  } catch (error) {
-    console.error(`An error occurred while creating the index: ${error}`);
-    throw error;
-  }
+export const createPineconeIndex = async (pinecone: Pinecone, indexName: string) => {
+  console.log(`Creating index ${indexName}...`);
+  await pinecone.createIndex({
+    name: indexName,
+    dimension: 1536,
+    metric: 'cosine',
+    spec: { serverless: { cloud: 'aws', region: 'us-east-1' } }
+  });
 };
 
 export const listIndexes = async (): Promise<IndexModel[] | undefined> => {
   try {
-    const indexes = await pineconeClient.listIndexes();
+    const indexes = await getPineconeClient().listIndexes();
     return indexes.indexes;
   } catch (error) {
     console.error(`An error occurred when listing index: ${error}`);
@@ -57,33 +44,20 @@ export const listIndexes = async (): Promise<IndexModel[] | undefined> => {
 
 export const checkIndexExists = async (indexName: string): Promise<boolean> => {
   try {
-    const response = await pineconeClient.describeIndex(indexName);
-
-    if (response?.status?.state === 'Ready') {
-      console.log(`Index ${indexName} exists.`);
-      return true;
-    } else {
-      console.log(`Index ${indexName} does not exist.`);
-      return false;
-    }
+    const response = await getPineconeClient().describeIndex(indexName);
+    return response?.status?.state === 'Ready';
   } catch (error) {
     console.error(`Failed to check if index exists: ${error}`);
     return false;
   }
 };
 
-export const getNamespaces = async (
-  indexName: string
-): Promise<string[] | undefined> => {
+export const getNamespaces = async (indexName: string): Promise<string[] | undefined> => {
   try {
-    const index = pineconeClient.Index(indexName);
+    const index = getPineconeClient().Index(indexName);
     const res = await index.describeIndexStats();
-
-    const namespacesObj:
-      | { [key: string]: IndexStatsNamespaceSummary }
-      | undefined = res.namespaces;
-
-    return namespacesObj ? Object.keys(namespacesObj) : undefined;
+    const namespaces: { [key: string]: IndexStatsNamespaceSummary } | undefined = res.namespaces;
+    return namespaces ? Object.keys(namespaces) : undefined;
   } catch (error) {
     console.error(`An error occurred when fetching namespaces: ${error}`);
     return undefined;

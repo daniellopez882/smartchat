@@ -1,5 +1,4 @@
 import { useState, useEffect, FC, ReactElement } from 'react';
-import { useRouter } from 'next/router';
 
 import Footer from '@/src/components/Footer';
 import Header from '@/src/components/Header';
@@ -15,11 +14,6 @@ interface LayoutProps {
 const Layout: FC<LayoutProps> = ({ children, namespacesList }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
-
-  const router = useRouter();
-
-  // Check if the current route is the homepage ("/")
-  const isChatPage = router.pathname === '/';
 
   useEffect(() => {
     const checkIsMobile = () => {

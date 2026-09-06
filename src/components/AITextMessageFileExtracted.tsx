@@ -10,15 +10,14 @@ export const AITextMessageFileExtracted = (content: string) => {
   const outputFileRegex =
     /<outputfile title="([^"]+)">([\s\S]*?)<\/outputfile>/g;
   let outputFileMatch;
-  const outputFileComponents = [];
   let initialShowContent: ShowContentState = {};
 
   while ((outputFileMatch = outputFileRegex.exec(content)) !== null) {
-    const [, title, fileContent] = outputFileMatch;
+    const [, title] = outputFileMatch;
     initialShowContent[title] = false;
   }
 
-  const [showContent, setShowContent] =
+  const [, setShowContent] =
     useState<ShowContentState>(initialShowContent);
 
   const toggleContent = (title: string) => {

@@ -22,7 +22,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
 }) => {
   const router = useRouter();
 
-  const { activeChat, setActiveChat, chats, setChats } = useChatContext();
+  const { activeChat, setActiveChat, setChats } = useChatContext();
 
   const handleAddTags = (newTags: string[]) => {
     const token = window.localStorage.getItem('token');

@@ -101,7 +101,7 @@ export const decodeHTMLEntitiesAndReferences = (input: string) => {
  * @param input - The string with HTML entities to be decoded.
  * @returns The input string with HTML entities converted back to characters.
  */
-function decodeHTML(input: string): string {
+export function decodeHTML(input: string): string {
   return input
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')

@@ -37,7 +37,7 @@ export class ClaudeProvider extends BaseAIProvider {
         Buffer.from(str, 'base64').toString('base64');
       }
       return true;
-    } catch (e) {
+    } catch {
       return false;
     }
   }
