@@ -6,9 +6,7 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A single-user chat application for talking to OpenAI, Anthropic, Gemini and
-Groq models (and a self-hosted model through the companion
-[smartchat-fastapi](https://github.com/daniellopez882/smartchat-fastapi)
-server), with file and image input, optional retrieval over uploaded PDFs
+Groq models (and a self-hosted model through the companion server), with file and image input, optional retrieval over uploaded PDFs
 (Pinecone), saved assistants, and chat history in SQLite. Next.js 15 (Pages
 Router), TypeScript, TypeORM on better-sqlite3.
 
