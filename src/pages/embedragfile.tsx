@@ -345,7 +345,7 @@ const UploadFilePage: FC<{ namespaces: string[] }> = ({ namespaces }) => {
             </a>{' '}
             on Hugging Face. You can host the model using{' '}
             <a
-              href="https://github.com/daniellopez882/smartchat-fastapi"
+              href="https://github.com/linghong/smartchat-fastapi"
               className="text-blue-500 hover:underline"
             >
               SmartChat-FastAPI

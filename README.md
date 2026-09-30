@@ -6,7 +6,8 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A single-user chat application for talking to OpenAI, Anthropic, Gemini and
-Groq models (and a self-hosted model through the companion server), with file and image input, optional retrieval over uploaded PDFs
+Groq models (and a self-hosted model through upstream's companion server,
+[`linghong/smartchat-fastapi`](https://github.com/linghong/smartchat-fastapi)), with file and image input, optional retrieval over uploaded PDFs
 (Pinecone), saved assistants, and chat history in SQLite. Next.js 15 (Pages
 Router), TypeScript, TypeORM on better-sqlite3.
 
@@ -18,6 +19,12 @@ Router), TypeScript, TypeORM on better-sqlite3.
 > now; the host-level tools are off unless enabled; a fresh clone gets a
 > database (it did not); and the build no longer needs every provider's key.
 > Each defect below was reproduced before it was fixed.
+
+> **Origin.** This repository is derived from
+> [`linghong/smartchat`](https://github.com/linghong/smartchat) (MIT,
+> copyright Linghong Chen). The work recorded here is a hardening review of
+> that code — authentication, input validation, tests, CI and the container —
+> not an original build.
 
 ## At a glance
 
@@ -115,7 +122,7 @@ remote-server tools are not meaningful in a container and stay off.
 | `NEXT_PUBLIC_API_URL` | yes | Where the browser reaches the app |
 | `OPENAI_API_KEY` · `CLAUDE_API_KEY` · `GEMINI_API_KEY` · `GROQ_API_KEY` | per provider | A model whose provider is missing returns 503 |
 | `PINECONE_API_KEY` · `PINECONE_INDEX_NAME` | for RAG | Without both, upload is disabled and chat runs without retrieval |
-| `NEXT_PUBLIC_SERVER_URL` · `NEXT_PUBLIC_SERVER_GPU_URL` · `NEXT_PUBLIC_SERVER_SECRET_KEY` | for self-hosted models | The companion FastAPI server |
+| `NEXT_PUBLIC_SERVER_URL` · `NEXT_PUBLIC_SERVER_GPU_URL` · `NEXT_PUBLIC_SERVER_SECRET_KEY` | for self-hosted models | Upstream's companion server, [`linghong/smartchat-fastapi`](https://github.com/linghong/smartchat-fastapi) |
 | `DATABASE_PATH` | no | Default `database.sqlite` |
 | `ENABLE_SCREENSHOT_TOOL` | no | Off. Captures this machine's desktop |
 | `ENABLE_REMOTE_SERVER_TOOLS` · `REMOTE_SERVER_PEM_PATH` · `AWS_*` | no | Off. EC2 start/stop + `systemctl` over SSH |
@@ -175,7 +182,8 @@ docs/                 ADRs, threat model
 - `xlsx` comes from SheetJS's own distribution because the npm registry copy
   has no fixed release; `.audit-allowlist.json` lists any advisory CI is told
   to ignore, with its reason in the threat model.
-- The self-hosted model path depends on the companion server and is untested here.
+- The self-hosted model path depends on upstream's companion server
+  ([`linghong/smartchat-fastapi`](https://github.com/linghong/smartchat-fastapi)) and is untested here.
 - The image is 1.7 GB: TypeORM loads its driver with a dynamic `require` that
   Next's standalone tracing does not follow, so `node_modules` ships whole.
 - The UI was checked by hand against the image (login, chat page, every icon
@@ -183,4 +191,4 @@ docs/                 ADRs, threat model
 
 ## Licence
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). The original copyright is Linghong Chen's.

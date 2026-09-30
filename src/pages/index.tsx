@@ -245,7 +245,7 @@ const HomePage: React.FC<HomeProps> = ({ namespaces, setNamespacesList }) => {
             <>
               SmartChat-FastAPI app is required. Please make sure your{' '}
               <a
-                href="http://github.com/daniellopez882/smartchat-fastapi"
+                href="https://github.com/linghong/smartchat-fastapi"
                 target="_blank"
                 rel="noopener noreferrer"
               >
