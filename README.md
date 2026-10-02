@@ -6,8 +6,7 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A single-user chat application for talking to OpenAI, Anthropic, Gemini and
-Groq models (and a self-hosted model through upstream's companion server,
-[`linghong/smartchat-fastapi`](https://github.com/linghong/smartchat-fastapi)), with file and image input, optional retrieval over uploaded PDFs
+Groq models, with file and image input, optional retrieval over uploaded PDFs
 (Pinecone), saved assistants, and chat history in SQLite. Next.js 15 (Pages
 Router), TypeScript, TypeORM on better-sqlite3.
 
@@ -20,11 +19,6 @@ Router), TypeScript, TypeORM on better-sqlite3.
 > database (it did not); and the build no longer needs every provider's key.
 > Each defect below was reproduced before it was fixed.
 
-> **Origin.** This repository is derived from
-> [`linghong/smartchat`](https://github.com/linghong/smartchat) (MIT,
-> copyright Linghong Chen). The work recorded here is a hardening review of
-> that code — authentication, input validation, tests, CI and the container —
-> not an original build.
 
 ## At a glance
 
@@ -182,8 +176,6 @@ docs/                 ADRs, threat model
 - `xlsx` comes from SheetJS's own distribution because the npm registry copy
   has no fixed release; `.audit-allowlist.json` lists any advisory CI is told
   to ignore, with its reason in the threat model.
-- The self-hosted model path depends on upstream's companion server
-  ([`linghong/smartchat-fastapi`](https://github.com/linghong/smartchat-fastapi)) and is untested here.
 - The image is 1.7 GB: TypeORM loads its driver with a dynamic `require` that
   Next's standalone tracing does not follow, so `node_modules` ships whole.
 - The UI was checked by hand against the image (login, chat page, every icon
